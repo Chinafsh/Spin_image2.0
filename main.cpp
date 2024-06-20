@@ -14,7 +14,7 @@ float alpha_max, beta_max, binSize;
 
 using namespace std;
 // gargoyle100K, bunny
-const string objName = "../model/gargoyle100K.obj";
+const string objName = "../model/bunny.obj";
 
 float computeMeshResolution(MyMesh& mesh)
 {   
@@ -41,7 +41,7 @@ void SpinMap(OpenMesh::Vec3f& x, OpenMesh::Vec3f& p, OpenMesh::Vec3f& n, float& 
     alpha = std::sqrt(std::pow((x-p).norm(),2)-beta*beta);
 }
 
-
+//=========================== TBB Parallel Computing================
 void computeMaxAB(MyMesh& mesh, float& alpha_max, float& beta_max)
 {
     tbb::parallel_for(
@@ -67,6 +67,7 @@ void computeMaxAB(MyMesh& mesh, float& alpha_max, float& beta_max)
             }
         }    
     );
+//=========================== TBB Parallel Computing================
 
 
 
@@ -177,7 +178,16 @@ int main()
     beta_max = FLT_MIN;
     
     // compute the max alpha and max beta, then get the image size
+    auto start = std::chrono::system_clock::now();
+
     computeMaxAB(mesh, alpha_max, beta_max);
+     auto stop = std::chrono::system_clock::now();
+
+    std::cout << "ComputeMaxAB complete: \n";
+    std::cout << "Time taken: " << std::chrono::duration_cast<std::chrono::hours>(stop - start).count() << " hours\n";
+    std::cout << "          : " << std::chrono::duration_cast<std::chrono::minutes>(stop - start).count() << " minutes\n";
+    std::cout << "          : " << std::chrono::duration_cast<std::chrono::seconds>(stop - start).count() << " seconds\n";
+
 
     std::cout << alpha_max << ", " << beta_max << std::endl;
 
@@ -206,33 +216,46 @@ int main()
     }
 
     // Compute Spin image for each oriented_point
-    tbb::parallel_for(
-        tbb::blocked_range<size_t>(0, Oriented_points.size()),
-        [&Oriented_points](const tbb::blocked_range<size_t>& r){
-            for(size_t i = r.begin(); i!=r.end();++i){
-                computeSpinImge(Oriented_points[i], Oriented_points);
-                std::string filename = "gargoyleSpinImages/si" + to_string(i) + ".jpg";
-                *(Oriented_points[i].SpinImage) *= 255.0;
-                cv::imwrite(filename,*(Oriented_points[i].SpinImage));
-                delete Oriented_points[i].SpinImage;
-            }
-        }
-    );
+
+
+    start = std::chrono::system_clock::now();
+
+    //-----------------------------TBB Parallel Computing------------
+    // tbb::parallel_for(
+    //     tbb::blocked_range<size_t>(0, Oriented_points.size()),
+    //     [&Oriented_points](const tbb::blocked_range<size_t>& r){
+    //         for(size_t i = r.begin(); i!=r.end();++i){
+    //             computeSpinImge(Oriented_points[i], Oriented_points);
+    //             std::string filename = "gargoyleSpinImages/si" + to_string(i) + ".jpg";
+    //             *(Oriented_points[i].SpinImage) *= 255.0;
+    //             cv::imwrite(filename,*(Oriented_points[i].SpinImage));
+    //             delete Oriented_points[i].SpinImage;
+    //         }
+    //     }
+    // );
+    //-----------------------------TBB Parallel Computing------------
+
+    stop = std::chrono::system_clock::now();
+
+    std::cout << "Compute Spin Images complete: \n";
+    std::cout << "Time taken: " << std::chrono::duration_cast<std::chrono::hours>(stop - start).count() << " hours\n";
+    std::cout << "          : " << std::chrono::duration_cast<std::chrono::minutes>(stop - start).count() << " minutes\n";
+    std::cout << "          : " << std::chrono::duration_cast<std::chrono::seconds>(stop - start).count() << " seconds\n";
 
 
 
-    // for(int i = 0; i < Oriented_points.size(); i++){
-    //     computeSpinImge(Oriented_points[i], Oriented_points);
-    //     std::string filename = "gargoyleSpinImages/si" + to_string(i) + ".jpg";
-    //     *(Oriented_points[i].SpinImage) *= 255.0;
-    //     cv::imwrite(filename,*(Oriented_points[i].SpinImage));
-    //     delete Oriented_points[i].SpinImage;
+    for(int i = 0; i < Oriented_points.size(); i++){
+        computeSpinImge(Oriented_points[i], Oriented_points);
+        std::string filename = "gargoyleSpinImages/si" + to_string(i) + ".jpg";
+        *(Oriented_points[i].SpinImage) *= 255.0;
+        cv::imwrite(filename,*(Oriented_points[i].SpinImage));
 
-    //     // cv::namedWindow("Spin Image",cv::WINDOW_NORMAL);
-    //     // cv::imshow("Spin Image",*(Oriented_points[i].SpinImage));
-    //     // cv::waitKey(1000);
-    //     // cv::normalize(*(Oriented_points[i].SpinImage), *(Oriented_points[i].SpinImage), 0, 1, cv::NORM_MINMAX);
-    // }
-        std::cout << "done." << std::endl;
+        // cv::namedWindow("Spin Image",cv::WINDOW_NORMAL);
+        // cv::imshow("Spin Image",*(Oriented_points[i].SpinImage));
+        // cv::waitKey(1000);
+        // cv::normalize(*(Oriented_points[i].SpinImage), *(Oriented_points[i].SpinImage), 0, 1, cv::NORM_MINMAX);
+        delete Oriented_points[i].SpinImage;
+    }
+    std::cout << "done." << std::endl;
     return 0;
 }
